@@ -13,17 +13,17 @@ import json
 import re
 # Parse commandline arguments
 parser = ArgumentParser()
-parser.add_argument("-p", type=str, choices=("S", "T", "I"), default="S",
+parser.add_argument("-p", choices=("S", "T", "I"), default="S",
                     help="study program: S = bisemester (default), T = trisemester, I = international")
-parser.add_argument("-s", type=str, choices=("1", "2", "3"), default=None,
+parser.add_argument("-s", choices=("1", "2", "3"), default=None,
                     help="semester, default is the current semester")
-parser.add_argument("-y", type=str, default=None,
+parser.add_argument("-y", default=None,
                     help="academic year, default is the current academic year")
-parser.add_argument("-f", type=str, default=None,
+parser.add_argument("-f", default=None,
                     help="faculty code, default is to scrape every faculty")
 parser.add_argument("-gui", action="store_true",
                     help="enable browser's GUI")
-parser.add_argument("-o", type=str, default="regchula_courses.json",
+parser.add_argument("-o", default="regchula_courses.json",
                     help="output file's name, default is regchula_courses.json")
 args = parser.parse_args()
 study_program_arg = args.p

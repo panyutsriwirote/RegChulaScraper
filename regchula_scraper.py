@@ -19,8 +19,8 @@ parser.add_argument("-s", choices=("1", "2", "3"), default=None,
                     help="semester, default is the current semester")
 parser.add_argument("-y", default=None,
                     help="academic year, default is the current academic year")
-parser.add_argument("-f", default=None,
-                    help="faculty code, default is to scrape every faculty")
+parser.add_argument("-f", nargs="+", default=None,
+                    help="list of faculty codes, default is to scrape every faculty")
 ##############################################
 # parser.add_argument("-g", action="store_true",
 #                     help="scrape group courses instead of normal courses")
@@ -89,7 +89,7 @@ with webdriver.Chrome(options=options) as driver:
     #     course_type.select_by_value("2")
     ##############################################
     # Begin writing JSON file
-    faculty_options = faculty.options[1:] if faculty_arg is None else [option for option in faculty.options if option.get_attribute("value") == faculty_arg]
+    faculty_options = faculty.options[1:] if faculty_arg is None else [option for option in faculty.options if option.get_attribute("value") in faculty_arg]
     n_faculty = len(faculty_options)
     with open(output_file, "w", encoding="utf-8") as file:
         file.write("[\n")

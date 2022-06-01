@@ -157,7 +157,7 @@ with webdriver.Chrome(options=options) as driver:
                     mid_term_date, mid_term_start,mid_term_end = None, None, None
                 else:
                     match = exam_date.match(mid_term)
-                    mid_term_date = f"{int(match.group(3))-543}-{month_to_num[match.group(2)]}-{match.group(1)}"
+                    mid_term_date = f"{match.group(3)}-{month_to_num[match.group(2)]}-{match.group(1)}"
                     mid_term_start = match.group(4)
                     mid_term_end = match.group(5)
                 final = exam_info[3].text
@@ -165,7 +165,7 @@ with webdriver.Chrome(options=options) as driver:
                     final_date, final_start, final_end = None, None, None
                 else:
                     match = exam_date.match(final)
-                    final_date = f"{int(match.group(3))-543}-{month_to_num[match.group(2)]}-{match.group(1)}"
+                    final_date = f"{match.group(3)}-{month_to_num[match.group(2)]}-{match.group(1)}"
                     final_start = match.group(4)
                     final_end = match.group(5)
                 # Turn the table into an array

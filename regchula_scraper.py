@@ -21,6 +21,10 @@ parser.add_argument("-y", default=None,
                     help="academic year, default is the current academic year")
 parser.add_argument("-f", default=None,
                     help="faculty code, default is to scrape every faculty")
+##############################################
+# parser.add_argument("-g", action="store_true",
+#                     help="scrape group courses instead of normal courses")
+##############################################
 parser.add_argument("-gui", action="store_true",
                     help="enable browser's GUI")
 parser.add_argument("-o", default="regchula_courses.json",
@@ -30,6 +34,9 @@ study_program_arg = args.p
 semester_arg = args.s
 academic_year_arg = args.y
 faculty_arg = args.f
+##############################################
+# group_course_mode = args.g
+##############################################
 headless = not args.gui
 output_file = args.o
 # Thai-month-to-num dictionary
@@ -66,8 +73,9 @@ with webdriver.Chrome(options=options) as driver:
     semester = Select(driver.find_element(By.ID, "semester"))
     academic_year = driver.find_element(By.ID, "acadyearEfd")
     faculty = Select(driver.find_element(By.ID, "faculty"))
-    ##### Might implement group course later #####
+    ##############################################
     # course_type = Select(driver.find_element(By.ID, "coursetype"))
+    ##############################################
     submit = driver.find_element(By.NAME, "submit")
     # Input some values
     study_program.select_by_value(study_program_arg)
@@ -76,6 +84,10 @@ with webdriver.Chrome(options=options) as driver:
     if academic_year_arg is not None:
         academic_year.clear()
         academic_year.send_keys(academic_year_arg)
+    ##############################################
+    # if group_course_mode:
+    #     course_type.select_by_value("2")
+    ##############################################
     # Begin writing JSON file
     faculty_options = faculty.options[1:] if faculty_arg is None else [option for option in faculty.options if option.get_attribute("value") == faculty_arg]
     n_faculty = len(faculty_options)

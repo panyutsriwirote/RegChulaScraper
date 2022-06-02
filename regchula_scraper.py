@@ -135,7 +135,6 @@ with webdriver.Chrome(options=options) as driver:
             for j in tqdm(range(n_rows)):
                 # Click the link and switch to the right frame
                 link = rows[j]
-                course_id = link.text
                 link.click()
                 driver.switch_to.parent_frame()
                 driver.switch_to.frame("cs_right")

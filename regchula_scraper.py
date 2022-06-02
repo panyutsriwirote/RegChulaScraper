@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 import json
 import re
-# Parse commandline arguments
+# Parse command line arguments
 parser = ArgumentParser()
 parser.add_argument("-p", choices=("S", "T", "I"), default="S",
                     help="study program: S = bisemester (default), T = trisemester, I = international")
@@ -40,15 +40,15 @@ faculty_arg = args.f
 headless = not args.gui
 output_file = args.o
 # Thai-month-to-num dictionary
-month_to_num = {"ม.ค.": "01",
-                "ก.พ.": "02",
-                "มี.ค.": "03",
-                "เม.ย.": "04",
-                "พ.ค.": "05",
-                "มิ.ย.": "06",
-                "ก.ค.": "07",
-                "ส.ค.": "08",
-                "ก.ย.": "09",
+month_to_num = {"ม.ค.": "1",
+                "ก.พ.": "2",
+                "มี.ค.": "3",
+                "เม.ย.": "4",
+                "พ.ค.": "5",
+                "มิ.ย.": "6",
+                "ก.ค.": "7",
+                "ส.ค.": "8",
+                "ก.ย.": "9",
                 "ต.ค.": "10",
                 "พ.ย.": "11",
                 "ธ.ค.": "12"}
@@ -58,10 +58,21 @@ credit_pattern = re.compile("^(\d+\.[05]|\-) CREDIT HOURS =  (.+)$")
 normal_detailed_credit = re.compile("^\(.+\)$")
 special_detailed_credit = re.compile("^\((.+)\)  (.+)$")
 tdf = re.compile("^TDF")
-exam_date = re.compile("^(\d+) (.+\..+\.) (\d{4}) เวลา (\d+:\d{2})\-(\d+:\d{2}) น\.$")
+exam_date = re.compile("^(\d{1,2}) (.+\..+\.) (\d{4}) เวลา (\d{1,2}:\d{2})\-(\d{1,2}:\d{2}) น\.$")
+# Alert-aware clicking
+def safe_click(element):
+    element.click()
+    try:
+        alert = WebDriverWait(driver, 0.5).until(EC.alert_is_present())
+        if alert.text == "ไม่มีข้อมูลตารางสอนตารางสอบ":
+            print("No information is available for the specified parameters")
+            exit()
+        alert.accept()
+        safe_click(element)
+    except TimeoutException:
+        pass
 # Set driver's options
 options = webdriver.ChromeOptions()
-options.set_capability("unhandledPromptBehavior", "accept")
 options.headless = headless
 # Start scraping
 with webdriver.Chrome(options=options) as driver:
@@ -72,6 +83,7 @@ with webdriver.Chrome(options=options) as driver:
     study_program = Select(driver.find_element(By.ID, "studyProgram"))
     semester = Select(driver.find_element(By.ID, "semester"))
     academic_year = driver.find_element(By.ID, "acadyearEfd")
+    course_no = driver.find_element(By.ID, "courseno")
     faculty = Select(driver.find_element(By.ID, "faculty"))
     ##############################################
     # course_type = Select(driver.find_element(By.ID, "coursetype"))
@@ -88,18 +100,25 @@ with webdriver.Chrome(options=options) as driver:
     # if group_course_mode:
     #     course_type.select_by_value("2")
     ##############################################
-    # Begin writing JSON file
-    faculty_options = faculty.options[1:] if faculty_arg is None else [option for option in faculty.options if option.get_attribute("value") in faculty_arg]
+    # Filter available options
+    faculty_options = [option.get_attribute("value") for option in faculty.options[1:]]
+    if faculty_arg is not None:
+        for arg in faculty_arg:
+            if arg not in faculty_options:
+                print(f"Faculty code {arg} does not exist!")
+                exit()
+        faculty_options = faculty_arg
     n_faculty = len(faculty_options)
+    # Begin writing JSON file
     with open(output_file, "w", encoding="utf-8") as file:
         file.write("[\n")
         # Loop through every faculty option
-        for i, option in enumerate(faculty_options):
+        for i, faculty_id in enumerate(faculty_options, 1):
             # Submit the form and switch to the left frame
-            faculty_id = option.get_attribute("value")
-            print(f"Scraping {faculty_id} ({i+1}/{n_faculty})")
-            faculty.select_by_value(faculty_id)
-            submit.click()
+            course_no.clear()
+            course_no.send_keys(faculty_id)
+            safe_click(submit)
+            print(f"Scraping {faculty_id} ({i}/{n_faculty})")
             driver.switch_to.parent_frame()
             driver.switch_to.frame("cs_left")
             # If there are no courses, continue with the next faculty
@@ -176,7 +195,6 @@ with webdriver.Chrome(options=options) as driver:
                 # Process the array into sections and slots
                 section = []
                 offset = 0
-                sect_num = None
                 for row in table:
                     if len(row) == 10:
                         sect_num = int(row[1]) 
@@ -187,6 +205,7 @@ with webdriver.Chrome(options=options) as driver:
                                         "registered": int(registered),
                                         "maximum": int(maximum),
                                         "slot": []})
+                        cur_slot_array = section[-1]["slot"]
                     elif len(row) == 8:
                         offset = -1
                     teaching_method = row[2+offset]
@@ -198,7 +217,6 @@ with webdriver.Chrome(options=options) as driver:
                     note = row[8+offset]
                     if not note:
                         note = None
-                    cur_slot_array = section[-1]["slot"]
                     cur_slot_array.append({"slot_id": len(cur_slot_array)+1,
                                             "teaching_method": teaching_method,
                                             "day": day,

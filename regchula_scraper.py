@@ -19,8 +19,8 @@ parser.add_argument("-s", choices=("1", "2", "3"), default=None,
                     help="semester, default is the current semester")
 parser.add_argument("-y", default=None,
                     help="academic year, default is the current academic year")
-parser.add_argument("-f", nargs="+", default=None,
-                    help="list of faculty codes, default is to scrape every faculty")
+parser.add_argument("-id", nargs="+", default=None,
+                    help="list of course IDs, each with length between 2 and 7, default is to scrape every available course")
 ##############################################
 # parser.add_argument("-g", action="store_true",
 #                     help="scrape group courses instead of normal courses")
@@ -33,7 +33,11 @@ args = parser.parse_args()
 study_program_arg = args.p
 semester_arg = args.s
 academic_year_arg = args.y
-faculty_arg = args.f
+id_arg = args.id
+for elem in id_arg:
+    if not 1 < len(elem) < 8:
+        print(f"{elem}: Course IDs must have length between 2 and 7")
+        exit()
 ##############################################
 # group_course_mode = args.g
 ##############################################
@@ -101,24 +105,25 @@ with webdriver.Chrome(options=options) as driver:
     #     course_type.select_by_value("2")
     ##############################################
     # Filter available options
-    faculty_options = [option.get_attribute("value") for option in faculty.options[1:]]
-    if faculty_arg is not None:
-        for arg in faculty_arg:
-            if arg not in faculty_options:
-                print(f"Faculty code {arg} does not exist!")
+    search_terms = [option.get_attribute("value") for option in faculty.options[1:]]
+    if id_arg is not None:
+        for arg in id_arg:
+            faculty_code = arg[:2]
+            if faculty_code not in search_terms:
+                print(f"Faculty code {faculty_code} does not exist")
                 exit()
-        faculty_options = faculty_arg
-    n_faculty = len(faculty_options)
+        search_terms = id_arg
+    n_term = len(search_terms)
     # Begin writing JSON file
     with open(output_file, "w", encoding="utf-8") as file:
         file.write("[\n")
         # Loop through every faculty option
-        for i, faculty_id in enumerate(faculty_options, 1):
+        for i, search_term in enumerate(search_terms, 1):
             # Submit the form and switch to the left frame
             course_no.clear()
-            course_no.send_keys(faculty_id)
+            course_no.send_keys(search_term)
             safe_click(submit)
-            print(f"Scraping {faculty_id} ({i}/{n_faculty})")
+            print(f"Scraping {search_term} ({i}/{n_term})")
             driver.switch_to.parent_frame()
             driver.switch_to.frame("cs_left")
             # If there are no courses, continue with the next faculty
@@ -172,7 +177,7 @@ with webdriver.Chrome(options=options) as driver:
                 # Extract exam date information
                 mid_term = exam_info[1].text
                 if tdf.match(mid_term):
-                    mid_term_date, mid_term_start,mid_term_end = None, None, None
+                    mid_term_date = mid_term_start = mid_term_end = None
                 else:
                     match = exam_date.match(mid_term)
                     mid_term_date = f"{match.group(3)}-{month_to_num[match.group(2)]}-{match.group(1)}"
@@ -180,7 +185,7 @@ with webdriver.Chrome(options=options) as driver:
                     mid_term_end = match.group(5)
                 final = exam_info[3].text
                 if tdf.match(final):
-                    final_date, final_start, final_end = None, None, None
+                    final_date = final_start = final_end = None
                 else:
                     match = exam_date.match(final)
                     final_date = f"{match.group(3)}-{month_to_num[match.group(2)]}-{match.group(1)}"
@@ -252,4 +257,4 @@ with webdriver.Chrome(options=options) as driver:
         # Replace the last ",\n" with "\n]"
         file.seek(file.tell()-3)
         file.write("\n]")
-    print("Scraping Finished!")
+    print("Scraping Finished")

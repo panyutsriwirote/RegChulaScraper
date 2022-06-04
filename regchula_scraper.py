@@ -6,15 +6,23 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 # Command line argument parser
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 # Other utilities
 from tqdm import tqdm
 import json
 import re
+from sys import exit
+# Define argument validation function
+def valid_course_id(string):
+    if not string.isdigit():
+        raise ArgumentTypeError(f"invalid course ID: '{string}'")
+    if not 1 < len(string) < 8:
+        raise ArgumentTypeError(f"invalid length of course ID: '{string}'")
+    return string
 # Define argument parser
 parser = ArgumentParser(description="A tool for scraping course information from reg.chula.ac.th")
 id_or_all = parser.add_mutually_exclusive_group(required=True)
-id_or_all.add_argument("-id", nargs="+",
+id_or_all.add_argument("-id", nargs="+", type=valid_course_id,
                     help="list of course IDs, each with length between 2 and 7")
 id_or_all.add_argument("-all", action="store_true",
                     help="scrape every available course")
@@ -22,7 +30,7 @@ parser.add_argument("-p", choices=("S", "T", "I"), default="S",
                     help="study program: S = bisemester (default), T = trisemester, I = international")
 parser.add_argument("-s", choices=("1", "2", "3"),
                     help="semester, default is the current semester")
-parser.add_argument("-y",
+parser.add_argument("-y", type=int,
                     help="academic year, default is the current academic year")
 parser.add_argument("-g", action="store_true",
                     help="scrape group courses instead of normal courses")
@@ -33,11 +41,6 @@ parser.add_argument("-o", default="regchula_courses.json",
 # Parse command line arguments
 args = parser.parse_args()
 id_arg = args.id
-if id_arg is not None:
-    for elem in id_arg:
-        if not 1 < len(elem) < 8:
-            print(f"{elem}: Course IDs must have length between 2 and 7")
-            exit()
 study_program_arg = args.p
 semester_arg = args.s
 academic_year_arg = args.y
@@ -75,8 +78,7 @@ with webdriver.Chrome(options=options) as driver:
         for elem in id_arg:
             faculty_code = elem[:2]
             if faculty_code not in search_terms:
-                print(f"Faculty code {faculty_code} does not exist")
-                exit()
+                exit(f"Faculty code {faculty_code} does not exist")
         search_terms = id_arg
     n_term = len(search_terms)
     # Define alert-aware clicking
@@ -85,8 +87,7 @@ with webdriver.Chrome(options=options) as driver:
         try:
             alert = WebDriverWait(driver, 0.5).until(EC.alert_is_present())
             if alert.text == "ไม่มีข้อมูลตารางสอนตารางสอบ":
-                print("No information is available for the specified parameters")
-                exit()
+                exit("No information is available for the specified parameters")
             alert.accept()
             safe_click(element)
         except TimeoutException:

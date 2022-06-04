@@ -11,32 +11,36 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 import json
 import re
-# Parse command line arguments
-parser = ArgumentParser()
+# Define argument parser
+parser = ArgumentParser(description="A tool for scraping course information from reg.chula.ac.th")
+id_or_all = parser.add_mutually_exclusive_group(required=True)
+id_or_all.add_argument("-id", nargs="+",
+                    help="list of course IDs, each with length between 2 and 7")
+id_or_all.add_argument("-all", action="store_true",
+                    help="scrape every available course")
 parser.add_argument("-p", choices=("S", "T", "I"), default="S",
                     help="study program: S = bisemester (default), T = trisemester, I = international")
-parser.add_argument("-s", choices=("1", "2", "3"), default=None,
+parser.add_argument("-s", choices=("1", "2", "3"),
                     help="semester, default is the current semester")
-parser.add_argument("-y", default=None,
+parser.add_argument("-y",
                     help="academic year, default is the current academic year")
-parser.add_argument("-id", nargs="+", default=None,
-                    help="list of course IDs, each with length between 2 and 7, default is to scrape every available course")
 parser.add_argument("-g", action="store_true",
                     help="scrape group courses instead of normal courses")
 parser.add_argument("-gui", action="store_true",
                     help="enable browser's GUI")
 parser.add_argument("-o", default="regchula_courses.json",
                     help="output file's name, default is regchula_courses.json")
+# Parse command line arguments
 args = parser.parse_args()
-study_program_arg = args.p
-semester_arg = args.s
-academic_year_arg = args.y
 id_arg = args.id
 if id_arg is not None:
     for elem in id_arg:
         if not 1 < len(elem) < 8:
             print(f"{elem}: Course IDs must have length between 2 and 7")
             exit()
+study_program_arg = args.p
+semester_arg = args.s
+academic_year_arg = args.y
 group_course_mode = args.g
 headless = not args.gui
 output_file = args.o
@@ -68,8 +72,8 @@ with webdriver.Chrome(options=options) as driver:
     # Get a list of possible search term
     search_terms = [option.get_attribute("value") for option in faculty.options[1:]]
     if id_arg is not None:
-        for arg in id_arg:
-            faculty_code = arg[:2]
+        for elem in id_arg:
+            faculty_code = elem[:2]
             if faculty_code not in search_terms:
                 print(f"Faculty code {faculty_code} does not exist")
                 exit()

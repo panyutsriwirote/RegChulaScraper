@@ -21,6 +21,8 @@ def valid_course_id(string):
     return string
 # Define argument parser
 parser = ArgumentParser(description="A tool for scraping course information from reg.chula.ac.th")
+parser.add_argument("-g", action="store_true",
+                    help="scrape group courses instead of normal courses")
 id_or_all = parser.add_mutually_exclusive_group(required=True)
 id_or_all.add_argument("-id", nargs="+", type=valid_course_id,
                     help="list of course IDs, each with length between 2 and 7")
@@ -32,19 +34,17 @@ parser.add_argument("-s", choices=("1", "2", "3"),
                     help="semester, default is the current semester")
 parser.add_argument("-y", type=int,
                     help="academic year, default is the current academic year")
-parser.add_argument("-g", action="store_true",
-                    help="scrape group courses instead of normal courses")
 parser.add_argument("-gui", action="store_true",
                     help="enable browser's GUI")
 parser.add_argument("-o", default="regchula_courses.json",
                     help="output file's name, default is regchula_courses.json")
 # Parse command line arguments
 args = parser.parse_args()
+group_course_mode = args.g
 id_arg = args.id
 study_program_arg = args.p
 semester_arg = args.s
 academic_year_arg = args.y
-group_course_mode = args.g
 headless = not args.gui
 output_file = args.o
 # Set driver's options

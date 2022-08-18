@@ -83,13 +83,13 @@ with webdriver.Chrome(options=options) as driver:
     n_term = len(search_terms)
     # Define alert-aware clicking
     def safe_click(element):
-        element.click()
         try:
-            alert = WebDriverWait(driver, 0.5).until(EC.alert_is_present())
-            if alert.text == "ไม่มีข้อมูลตารางสอนตารางสอบ":
-                exit("No information is available for the specified parameters")
-            alert.accept()
-            safe_click(element)
+            while True:
+                element.click()
+                alert = WebDriverWait(driver, 0.5).until(EC.alert_is_present())
+                if alert.text == "ไม่มีข้อมูลตารางสอนตารางสอบ":
+                    exit("No information is available for the specified parameters")
+                alert.accept()
         except TimeoutException:
             pass
     # Begin writing JSON file

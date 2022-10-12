@@ -1,24 +1,29 @@
 # Selenium webdriver
 from selenium import webdriver
-from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.remote.webelement import WebElement
+
 # Command line argument parser
 from argparse import ArgumentParser, ArgumentTypeError
+
 # Other utilities
 from tqdm import tqdm
 import json
 import re
 from sys import exit
+
 # Define argument validation function
-def valid_course_id(string):
+def valid_course_id(string: str) -> str:
     if not string.isdigit():
         raise ArgumentTypeError(f"invalid course ID: '{string}'")
     if not 1 < len(string) < 8:
         raise ArgumentTypeError(f"invalid length of course ID: '{string}'")
     return string
+
 # Define argument parser
 parser = ArgumentParser(description="A tool for scraping course information from reg.chula.ac.th")
 parser.add_argument("-g", action="store_true",
@@ -38,6 +43,7 @@ parser.add_argument("-gui", action="store_true",
                     help="enable browser's GUI")
 parser.add_argument("-o", default="regchula_courses.json",
                     help="output file's name, default is regchula_courses.json")
+
 # Parse command line arguments
 args = parser.parse_args()
 group_course_mode = args.g
@@ -47,14 +53,18 @@ semester_arg = args.s
 academic_year_arg = args.y
 headless = not args.gui
 output_file = args.o
+
 # Set driver's options
 options = webdriver.ChromeOptions()
 options.headless = headless
+
 # Start scraping
 with webdriver.Chrome(options=options) as driver:
+
     # Open the page and go to the top frame
     driver.get("https://cas.reg.chula.ac.th/cu/cs/QueryCourseScheduleNew/index.html")
     driver.switch_to.frame("cs_search")
+
     # Identify relevant input fields
     study_program = Select(driver.find_element(By.ID, "studyProgram"))
     semester = Select(driver.find_element(By.ID, "semester"))
@@ -63,6 +73,7 @@ with webdriver.Chrome(options=options) as driver:
     faculty = Select(driver.find_element(By.ID, "faculty"))
     course_type = Select(driver.find_element(By.ID, "coursetype"))
     submit = driver.find_element(By.NAME, "submit")
+
     # Input some values
     study_program.select_by_value(study_program_arg)
     if semester_arg is not None:
@@ -72,6 +83,7 @@ with webdriver.Chrome(options=options) as driver:
         academic_year.send_keys(academic_year_arg)
     if group_course_mode:
         course_type.select_by_value("2")
+
     # Get a list of possible search term
     search_terms = [option.get_attribute("value") for option in faculty.options[1:]]
     if id_arg is not None:
@@ -81,8 +93,9 @@ with webdriver.Chrome(options=options) as driver:
                 exit(f"Faculty code {faculty_code} does not exist")
         search_terms = id_arg
     n_term = len(search_terms)
+
     # Define alert-aware clicking
-    def safe_click(element):
+    def safe_click(element: WebElement) -> None:
         try:
             while True:
                 element.click()
@@ -92,10 +105,12 @@ with webdriver.Chrome(options=options) as driver:
                 alert.accept()
         except TimeoutException:
             pass
+
     # Begin writing JSON file
     with open(output_file, "w", encoding="utf-8") as file:
         file.write("[\n")
         if not group_course_mode:
+
             # Thai-month-to-num dictionary
             month_to_num = {"ม.ค.": "1",
                             "ก.พ.": "2",
@@ -109,15 +124,18 @@ with webdriver.Chrome(options=options) as driver:
                             "ต.ค.": "10",
                             "พ.ย.": "11",
                             "ธ.ค.": "12"}
+
             # Pre-compile regex
-            id_and_short_name = re.compile("^(\d{7})  (.+)$")
-            credit_pattern = re.compile("^(\d+\.[05]|\-) CREDIT HOURS =  (.+)$")
-            normal_detailed_credit = re.compile("^\(.+\)$")
-            special_detailed_credit = re.compile("^\((.+)\)  (.+)$")
-            tdf = re.compile("^TDF")
-            exam_date = re.compile("^(\d{1,2}) (.+\..+\.) (\d{4}) เวลา (\d{1,2}:\d{2})\-(\d{1,2}:\d{2}) น\.$")
+            id_and_short_name = re.compile(r"^(\d{7})  (.+)$")
+            credit_pattern = re.compile(r"^(\d+\.[05]|\-) CREDIT HOURS =  (.+)$")
+            normal_detailed_credit = re.compile(r"^\(.+\)$")
+            special_detailed_credit = re.compile(r"^\((.+)\)  (.+)$")
+            tdf = re.compile(r"^TDF")
+            exam_date = re.compile(r"^(\d{1,2}) (.+\..+\.) (\d{4}) เวลา (\d{1,2}:\d{2})\-(\d{1,2}:\d{2}) น\.$")
+
             # Loop through every search term
             for i, search_term in enumerate(search_terms, 1):
+
                 # Submit the form and switch to the left frame
                 course_no.clear()
                 course_no.send_keys(search_term)
@@ -125,6 +143,7 @@ with webdriver.Chrome(options=options) as driver:
                 print(f"Scraping {search_term} ({i}/{n_term})")
                 driver.switch_to.parent_frame()
                 driver.switch_to.frame("cs_left")
+
                 # If there are no courses, continue with the next search term
                 try:
                     course_list = WebDriverWait(driver, 1).until(EC.presence_of_element_located((By.ID, "Table4")))
@@ -133,29 +152,35 @@ with webdriver.Chrome(options=options) as driver:
                     driver.switch_to.parent_frame()
                     driver.switch_to.frame("cs_search")
                     continue
+
                 # Loop through every course link
                 rows = course_list.find_elements(By.TAG_NAME, "a")
                 n_rows = len(rows)
                 for j in tqdm(range(n_rows)):
+
                     # Click the link and switch to the right frame
                     link = rows[j]
                     link.click()
                     driver.switch_to.parent_frame()
                     driver.switch_to.frame("cs_right")
+
                     # The result should be a html form element with 5 child tables
                     course_info = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.TAG_NAME, "form")))
                     child_tables = course_info.find_elements(By.TAG_NAME, "table")
+
                     # Identify relevant child tables
                     name_info = child_tables[1].find_elements(By.TAG_NAME, "tr")[3:]
                     credit_info = child_tables[2].find_elements(By.TAG_NAME, "tr")
                     exam_info = child_tables[3].find_elements(By.TAG_NAME, "font")
                     table_rows = child_tables[4].find_elements(By.TAG_NAME, "tr")[2:]
+
                     # Extract name information
                     match = id_and_short_name.match(name_info[0].text)
                     course_id = match.group(1)
                     course_short_name = match.group(2)
                     course_th_name = name_info[1].text
                     course_en_name = name_info[2].text
+
                     # Extract credit information
                     match = credit_pattern.match(credit_info[0].text)
                     credit = match.group(1)
@@ -174,6 +199,7 @@ with webdriver.Chrome(options=options) as driver:
                     prerequisite = credit_info[2].find_elements(By.TAG_NAME, "font")[1].text
                     if prerequisite == "-":
                         prerequisite = None
+
                     # Extract exam date information
                     mid_term = exam_info[1].text
                     if tdf.match(mid_term):
@@ -191,11 +217,13 @@ with webdriver.Chrome(options=options) as driver:
                         final_date = f"{match.group(3)}-{month_to_num[match.group(2)]}-{match.group(1)}"
                         final_start = match.group(4)
                         final_end = match.group(5)
+
                     # Turn the table into an array
                     table = []
                     for table_row in table_rows:
                         columns = table_row.find_elements(By.TAG_NAME, "td")
                         table.append([column.text for column in columns])
+
                     # Process the array into sections and slots
                     section = []
                     offset = 0
@@ -230,6 +258,7 @@ with webdriver.Chrome(options=options) as driver:
                                                 "teacher": teacher,
                                                 "note": note})
                         offset = 0
+
                     # JSONify and write to file
                     json_string = json.dumps({"course_id": course_id,
                                             "course_short_name": course_short_name,
@@ -248,15 +277,20 @@ with webdriver.Chrome(options=options) as driver:
                                             "section": section},
                                             indent="\t")
                     file.write(f"{json_string},\n")
+
                     # Continue with the next link
                     driver.switch_to.parent_frame()
                     driver.switch_to.frame("cs_left")
+
                 # Continue with the next search term
                 driver.switch_to.parent_frame()
                 driver.switch_to.frame("cs_search")
+
         else: #Group course mode
+
             # Loop through every search term
             for i, search_term in enumerate(search_terms, 1):
+
                 # Submit the form and switch to the left frame
                 course_no.clear()
                 course_no.send_keys(search_term)
@@ -264,6 +298,7 @@ with webdriver.Chrome(options=options) as driver:
                 print(f"Scraping {search_term} ({i}/{n_term})")
                 driver.switch_to.parent_frame()
                 driver.switch_to.frame("cs_left")
+
                 # If there are no courses, continue with the next search term
                 try:
                     course_list = WebDriverWait(driver, 1).until(EC.presence_of_element_located((By.ID, "Table4")))
@@ -272,19 +307,23 @@ with webdriver.Chrome(options=options) as driver:
                     driver.switch_to.parent_frame()
                     driver.switch_to.frame("cs_search")
                     continue
+
                 # Loop through every course link
                 rows = course_list.find_elements(By.TAG_NAME, "a")
                 n_rows = len(rows)
                 for j in tqdm(range(n_rows)):
+
                     # Click the link and switch to the right frame
                     link = rows[j]
                     group_course_id = link.text
                     link.click()
                     driver.switch_to.parent_frame()
                     driver.switch_to.frame("cs_right")
+
                     # The result should be a html form element with lots of child tables, "Table1" is what we need
                     group_course_info = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "Table1")))
                     relevant_rows = group_course_info.find_elements(By.TAG_NAME, "tr")[1:]
+
                     # Extract sub-course information
                     sub_courses = []
                     for row in relevant_rows:
@@ -293,18 +332,23 @@ with webdriver.Chrome(options=options) as driver:
                         sect_num = columns[2].text
                         sub_courses.append({"course_id": course_id,
                                             "sect_num": sect_num})
+
                     # JSONify and write to file
                     json_string = json.dumps({"group_course_id": group_course_id,
                                             "sub_courses": sub_courses},
                                             indent="\t")
                     file.write(f"{json_string},\n")
+
                     # Continue with the next link
                     driver.switch_to.parent_frame()
                     driver.switch_to.frame("cs_left")
+
                 # Continue with the next search term
                 driver.switch_to.parent_frame()
                 driver.switch_to.frame("cs_search")
+
         # Replace the last ",\n" with "\n]"
         file.seek(file.tell()-3)
         file.write("\n]")
+
     print("Scraping Finished")

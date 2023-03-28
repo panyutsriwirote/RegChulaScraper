@@ -231,10 +231,10 @@ with webdriver.Chrome(options=options) as driver:
                     for row in table:
                         if len(row) == 10:
                             sect_num = int(row[1]) 
-                            sect_status = 1 if not row[0] else 0
+                            is_open = not row[0]
                             registered, maximum = row[9].split('/')
                             section.append({"sect_num": sect_num,
-                                            "sect_status": sect_status,
+                                            "is_open": is_open,
                                             "registered": int(registered),
                                             "maximum": int(maximum),
                                             "slot": []})

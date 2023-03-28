@@ -56,7 +56,8 @@ output_file = args.o
 
 # Set driver's options
 options = webdriver.ChromeOptions()
-options.headless = headless
+if headless:
+    options.add_argument("--headless")
 
 # Start scraping
 with webdriver.Chrome(options=options) as driver:
